@@ -42,6 +42,7 @@ Copie `sideButtonSeek.yml`, `sideButtonSeek.js` e `manifest` para `plugins/sideB
 | `swapButtons` | false | Inverte a direção dos dois botões. |
 | `onlyInPlayer` | true | Só reage sobre o player. |
 | `showOsd` | true | Mostra `+10s` / `−10s` por instantes. |
+| `showStepButton` | true | Mostra um botão ±Ns no player para alterar o passo. |
 | `preventNavigation` | true | `preventDefault()` impede o navegador de sair da página. |
 | `debug` | false | Regista eventos e resultados na consola. |
 
@@ -57,6 +58,8 @@ Abra uma cena e pressione um botão lateral: o tempo salta cerca de 10 segundos 
 
 ## Como funciona
 O Stash injeta o JavaScript de UI do plugin. Ele escuta `pointerdown`, `mousedown`, `mouseup` e `auxclick` na fase de captura, aceita apenas `button === 3` / `4` dentro de `.video-js`, chama `preventDefault()` e faz a busca via `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → o elemento `<video>`. As definições vêm de `{ configuration { plugins } }`.
+
+**v2.1.0 in-player step button:** a small `±Ns` button sits in the top-right corner of the video. Click it to pick a preset (5 / 10 / 15 / 30 / 60 / 120 s) or type a custom value; **Save** writes it to Stash's plugin settings through `configurePlugin`, so the value persists across reloads and browsers and takes effect immediately. It is an absolutely positioned overlay inside `.video-js` — it does not modify the VideoJS control bar or any React-owned node. Turn it off with `showStepButton`.
 
 **How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 

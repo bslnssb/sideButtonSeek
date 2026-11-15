@@ -42,6 +42,7 @@ Sao chép `sideButtonSeek.yml`, `sideButtonSeek.js` và `manifest` vào `plugins
 | `swapButtons` | false | Đổi ngược hướng hai nút. |
 | `onlyInPlayer` | true | Chỉ phản hồi trên trình phát. |
 | `showOsd` | true | Hiện thoáng `+10s` / `−10s`. |
+| `showStepButton` | true | Hiển thị nút ±Ns trên trình phát để đổi bước nhảy. |
 | `preventNavigation` | true | `preventDefault()` giữ trình duyệt ở lại trang. |
 | `debug` | false | Ghi sự kiện và kết quả ra console. |
 
@@ -57,6 +58,8 @@ Mở một cảnh và nhấn nút hông: thời gian nhảy khoảng 10 giây v�
 
 ## Cách hoạt động
 Stash chèn JavaScript giao diện của plugin. Nó lắng nghe `pointerdown`, `mousedown`, `mouseup`, `auxclick` ở pha capture, chỉ nhận `button === 3` / `4` trong `.video-js`, gọi `preventDefault()` rồi tua qua `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → phần tử `<video>`. Thiết lập lấy từ `{ configuration { plugins } }`.
+
+**v2.1.0 in-player step button:** a small `±Ns` button sits in the top-right corner of the video. Click it to pick a preset (5 / 10 / 15 / 30 / 60 / 120 s) or type a custom value; **Save** writes it to Stash's plugin settings through `configurePlugin`, so the value persists across reloads and browsers and takes effect immediately. It is an absolutely positioned overlay inside `.video-js` — it does not modify the VideoJS control bar or any React-owned node. Turn it off with `showStepButton`.
 
 **How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 

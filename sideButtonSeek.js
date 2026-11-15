@@ -41,17 +41,20 @@
   "use strict";
 
   var ID = "sideButtonSeek";
-  var VERSION = "2.0.0";
+  var VERSION = "2.1.0";
   var BACK = 3;    // X1 / browser back
   var FORWARD = 4; // X2 / browser forward
   var NAV_WINDOW_MS = 3000; // hard upper bound for a pending guard
   var DISARM_MS = 250;      // release the guard shortly after the last phase
+  var STEP_PRESETS = [5, 10, 15, 30, 60, 120];
+  var UI_POLL_MS = 1000;    // re-attach the step button after SPA navigation
 
   var DEFAULTS = Object.freeze({
     seekSeconds: 10,
     swapButtons: false,
     onlyInPlayer: true,
     showOsd: true,
+    showStepButton: true,
     preventNavigation: true,
     debug: false
   });
@@ -69,6 +72,9 @@
   var blockedTraversals = 0;
   var osdEl = null;
   var osdTimer = null;
+  var stepBtn = null;
+  var stepPanel = null;
+  var uiPollTimer = null;
 
   var navSupported = typeof window.navigation !== "undefined" &&
     typeof window.navigation.addEventListener === "function" &&
@@ -219,6 +225,178 @@
     osdTimer = setTimeout(function () {
       if (osdEl) osdEl.style.opacity = "0";
     }, 800);
+  }
+
+  /* ---------------------------------------------------------------- *
+   * In-player "seek step" button (v2.1.0).
+   *
+   * Appended as an absolutely positioned child of .video-js: NOT into
+   * VideoJS' control bar and NOT into any React-owned node. VideoJS does
+   * not remove it, React never reconciles it, and it follows the player
+   * into fullscreen. Clicking it opens a panel that writes the step back
+   * to Stash plugin settings, so the value survives reloads / browsers.
+   * ---------------------------------------------------------------- */
+  function stepLabel(value) {
+    return "\u00b1" + value + "s";
+  }
+
+  function removeStepUI() {
+    if (stepPanel) { stepPanel.remove(); stepPanel = null; }
+    if (stepBtn) { stepBtn.remove(); stepBtn = null; }
+  }
+
+  function setStepStatus(text, isError) {
+    var el = stepPanel && stepPanel.querySelector("[data-sbs-status]");
+    if (!el) return;
+    el.textContent = text || "";
+    el.style.color = isError ? "#ff9a9a" : "#9fe6a0";
+  }
+
+  function saveStep(value) {
+    var n = Number(value);
+    if (!isFinite(n) || n <= 0) {
+      setStepStatus("Enter a number greater than 0", true);
+      return Promise.resolve(null);
+    }
+    n = Math.min(3600, Math.max(0.1, n));
+    // configurePlugin replaces the WHOLE settings map, so send every key.
+    var payload = {};
+    Object.keys(DEFAULTS).forEach(function (k) { payload[k] = cfg[k]; });
+    payload.seekSeconds = n;
+    setStepStatus("Saving...", false);
+    return fetch("/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        query: "mutation($id: ID!, $in: Map!) { configurePlugin(plugin_id:$id, input:$in) }",
+        variables: { id: ID, in: payload }
+      })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.errors && d.errors.length) {
+          throw new Error(d.errors[0].message || "GraphQL error");
+        }
+        cfg.seekSeconds = n;
+        if (stepBtn) stepBtn.textContent = stepLabel(n);
+        setStepStatus("Saved: " + stepLabel(n) + " per press", false);
+        log("step saved", n);
+        return n;
+      })
+      .catch(function (err) {
+        var msg = err && err.message ? err.message : String(err);
+        setStepStatus("Save failed: " + msg, true);
+        log("step save failed", err);
+        return null;
+      });
+  }
+
+  function buildStepPanel() {
+    var panel = document.createElement("div");
+    panel.setAttribute("data-plugin", ID + "-panel");
+    panel.style.cssText = [
+      "position:absolute", "top:44px", "right:10px", "z-index:2147483001",
+      "width:226px", "padding:12px", "border-radius:10px",
+      "background:rgba(18,20,24,.95)", "color:#fff",
+      "box-shadow:0 6px 26px rgba(0,0,0,.55)", "border:1px solid rgba(255,255,255,.14)",
+      "font:13px/1.5 system-ui,sans-serif", "cursor:default"
+    ].join(";") + ";";
+    panel.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+      '<strong>Seek step / 跳转步长</strong>' +
+      '<button type="button" data-sbs-close style="background:none;border:0;color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:0 2px">\u00d7</button>' +
+      '</div>' +
+      '<div style="opacity:.72;margin-bottom:9px">Seconds per side-button press</div>' +
+      '<div data-sbs-presets style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px"></div>' +
+      '<div style="display:flex;gap:6px">' +
+      '<input type="number" min="0.1" max="3600" step="1" data-sbs-input ' +
+      'style="flex:1;min-width:0;background:#2b2f36;color:#fff;border:1px solid #555;border-radius:5px;padding:5px 7px;font:13px system-ui">' +
+      '<button type="button" data-sbs-save style="background:#3b7ddd;color:#fff;border:0;border-radius:5px;padding:5px 11px;cursor:pointer;font:600 13px system-ui">Save</button>' +
+      '</div>' +
+      '<div data-sbs-status style="min-height:18px;margin-top:8px;font-size:12px"></div>' +
+      '<div style="opacity:.55;font-size:11px">Saved to Stash plugin settings</div>';
+
+    // Keep panel interactions away from the video (play/pause) and from
+    // the global side-button handlers.
+    ["click", "mousedown", "mouseup", "pointerdown", "auxclick"].forEach(function (type) {
+      panel.addEventListener(type, function (e) { e.stopPropagation(); });
+    });
+
+    var presets = panel.querySelector("[data-sbs-presets]");
+    STEP_PRESETS.forEach(function (v) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = v + "s";
+      b.style.cssText = [
+        "background:#2b2f36", "color:#fff", "border:1px solid #555",
+        "border-radius:5px", "padding:5px 0", "cursor:pointer", "font:13px system-ui"
+      ].join(";") + ";";
+      b.addEventListener("click", function () { saveStep(v); });
+      presets.appendChild(b);
+    });
+
+    panel.querySelector("[data-sbs-close]").addEventListener("click", function () {
+      removeStepUI();
+      ensureStepUI();
+    });
+    panel.querySelector("[data-sbs-save]").addEventListener("click", function () {
+      var input = panel.querySelector("[data-sbs-input]");
+      saveStep(input.value);
+    });
+    panel.querySelector("[data-sbs-input]").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") saveStep(e.target.value);
+    });
+    return panel;
+  }
+
+  function toggleStepPanel(host) {
+    if (stepPanel && stepPanel.isConnected) {
+      stepPanel.remove();
+      stepPanel = null;
+      return;
+    }
+    stepPanel = buildStepPanel();
+    host.appendChild(stepPanel);
+    var input = stepPanel.querySelector("[data-sbs-input]");
+    input.value = cfg.seekSeconds;
+    input.focus();
+    input.select();
+  }
+
+  function ensureStepUI() {
+    if (!cfg.showStepButton) { removeStepUI(); return; }
+    var host = document.querySelector(".video-js");
+    if (!host) { removeStepUI(); return; }
+    if (stepBtn && stepBtn.isConnected && stepBtn.parentNode === host) {
+      // Keep the label in sync when settings finish loading / change.
+      stepBtn.textContent = stepLabel(cfg.seekSeconds);
+      return;
+    }
+    removeStepUI();
+
+    stepBtn = document.createElement("button");
+    stepBtn.type = "button";
+    stepBtn.setAttribute("data-plugin", ID + "-step");
+    stepBtn.textContent = stepLabel(cfg.seekSeconds);
+    stepBtn.title = "设置侧键跳转步长 / Set side-button seek step";
+    stepBtn.style.cssText = [
+      "position:absolute", "top:10px", "right:10px", "z-index:2147483000",
+      "padding:5px 10px", "border:1px solid rgba(255,255,255,.28)", "border-radius:6px",
+      "background:rgba(0,0,0,.55)", "color:#fff",
+      "font:600 13px/1.2 system-ui,sans-serif", "cursor:pointer", "opacity:.72",
+      "transition:opacity .15s ease", "pointer-events:auto"
+    ].join(";") + ";";
+    stepBtn.addEventListener("mouseenter", function () { stepBtn.style.opacity = "1"; });
+    stepBtn.addEventListener("mouseleave", function () { stepBtn.style.opacity = ".72"; });
+    ["click", "mousedown", "mouseup", "pointerdown", "auxclick"].forEach(function (type) {
+      stepBtn.addEventListener(type, function (e) { e.stopPropagation(); });
+    });
+    stepBtn.addEventListener("click", function (e) {
+      e.preventDefault();
+      toggleStepPanel(host);
+    });
+    host.appendChild(stepBtn);
   }
 
   function inPlayer(target) {
@@ -395,6 +573,8 @@
       reload: loadSettings,
       seek: function (delta) { return seek(delta); },
       simulate: function (button) { return doSeek(button === undefined ? FORWARD : button); },
+      setStep: function (seconds) { return saveStep(seconds); },
+      get stepButton() { return stepBtn; },
       _disable: function () {
         listeners.forEach(function (l) {
           l.target.removeEventListener(l.type, l.handler, l.options);
@@ -402,12 +582,19 @@
         listeners = [];
         clearTimeout(osdTimer);
         clearTimeout(disarmTimer);
+        clearInterval(uiPollTimer);
         if (osdEl) osdEl.remove();
         osdEl = null;
+        removeStepUI();
       }
     };
 
-    loadSettings();
+    // Attach the in-player step button. A light poll also re-attaches it
+    // after Stash's SPA navigation replaces the player container.
+    ensureStepUI();
+    uiPollTimer = setInterval(ensureStepUI, UI_POLL_MS);
+
+    loadSettings().then(function () { ensureStepUI(); });
     console.log("[" + ID + "] v" + VERSION + " loaded: X1 = back, X2 = forward" +
       (navSupported ? " (Navigation API guard active)" : " (legacy mode)"));
   }

@@ -42,6 +42,7 @@ Local Path: (leave empty)
 | `swapButtons` | false | 交换两个侧键的快进/回退方向。 |
 | `onlyInPlayer` | true | 仅当鼠标位于播放器上时生效。 |
 | `showOsd` | true | 在视频上短暂显示 `+10s` / `−10s` 提示。 |
+| `showStepButton` | true | 在播放器上显示 ±Ns 按钮，可直接修改跳转步长。 |
 | `preventNavigation` | true | 调用 `preventDefault()` 阻止浏览器离开页面。 |
 | `debug` | false | 在控制台输出事件与跳转结果。 |
 
@@ -57,6 +58,8 @@ Local Path: (leave empty)
 
 ## 实现原理
 Stash 注入插件的 UI JavaScript。脚本在捕获阶段监听 `pointerdown`、`mousedown`、`mouseup`、`auxclick`，只接受 `.video-js` 区域内 `button === 3` / `4` 的事件，调用 `preventDefault()`，再依次通过 `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → `<video>` 元素跳转。设置通过 `{ configuration { plugins } }` 读取。
+
+**v2.1.0 in-player step button:** a small `±Ns` button sits in the top-right corner of the video. Click it to pick a preset (5 / 10 / 15 / 30 / 60 / 120 s) or type a custom value; **Save** writes it to Stash's plugin settings through `configurePlugin`, so the value persists across reloads and browsers and takes effect immediately. It is an absolutely positioned overlay inside `.video-js` — it does not modify the VideoJS control bar or any React-owned node. Turn it off with `showStepButton`.
 
 **How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 

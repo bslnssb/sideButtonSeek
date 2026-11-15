@@ -1,6 +1,6 @@
 name: Side Button Seek
-description: Use the mouse side buttons (X1 / browser back and X2 / browser forward) to seek the scene player backwards and forwards. Blocks browser-level back/forward navigation via the Navigation API while the pointer is over the player.
-version: 2.0.0
+description: Use the mouse side buttons (X1 / browser back and X2 / browser forward) to seek the scene player backwards and forwards. Blocks browser-level back/forward navigation via the Navigation API, and adds an in-player button to set the seek step instantly.
+version: 2.1.0
 url: https://github.com/bslnssb/sideButtonSeek
 
 ui:
@@ -26,6 +26,11 @@ settings:
   showOsd:
     displayName: Show on-screen feedback
     description: "Briefly display the jump amount (e.g. +10s) over the video."
+    type: BOOLEAN
+
+  showStepButton:
+    displayName: Show seek-step button on the player
+    description: "Show a small ±Ns button in the top-right corner of the video. Click it to change how many seconds each side-button press jumps; the value is saved to the plugin settings."
     type: BOOLEAN
 
   preventNavigation:

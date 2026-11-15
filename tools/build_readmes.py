@@ -269,8 +269,26 @@ T = {
 ),
 }
 
-SETTING_KEYS = ["seekSeconds", "swapButtons", "onlyInPlayer", "showOsd", "preventNavigation", "debug"]
-SETTING_DEFAULTS = ["10", "false", "true", "true", "true", "false"]
+SETTING_KEYS = ["seekSeconds", "swapButtons", "onlyInPlayer", "showOsd", "showStepButton", "preventNavigation", "debug"]
+SETTING_DEFAULTS = ["10", "false", "true", "true", "true", "true", "false"]
+
+# v2.1.0: description of the in-player seek-step button, in every language.
+STEP_DESC = {
+    "": "Show a small ±Ns button on the player to change the seek step.",
+    "zh-CN": "在播放器上显示 ±Ns 按钮，可直接修改跳转步长。",
+    "zh-TW": "在播放器上顯示 ±Ns 按鈕，可直接修改跳轉步長。",
+    "ja": "プレイヤーに ±Ns ボタンを表示し、ステップを直接変更できます。",
+    "ko": "플레이어에 ±Ns 버튼을 표시해 이동 간격을 바로 변경합니다.",
+    "ru": "Показывать кнопку ±Ns на плеере для быстрой смены шага.",
+    "de": "Zeigt eine ±Ns-Schaltfläche im Player für den Sprungabstand.",
+    "es": "Muestra un botón ±Ns en el reproductor para cambiar el paso.",
+    "fr": "Affiche un bouton ±Ns sur le lecteur pour changer le pas.",
+    "pt": "Mostra um botão ±Ns no player para alterar o passo.",
+    "tr": "Oynatıcıda adımı değiştirmek için ±Ns düğmesi gösterir.",
+    "vi": "Hiển thị nút ±Ns trên trình phát để đổi bước nhảy.",
+    "th": "แสดงปุ่ม ±Ns บนตัวเล่นเพื่อเปลี่ยนช่วงการข้าม",
+    "el": "Εμφανίζει κουμπί ±Ns στον player για αλλαγή του βήματος.",
+}
 
 
 # v2.0.0: the plugin now cancels browser-level history traversal through the
@@ -293,7 +311,9 @@ V2_LIM1 = {
 "el": """Από την **v2.0.0** το πρόσθετο ακυρώνει και την πλοήγηση ιστορικού στο επίπεδο του προγράμματος περιήγησης μέσω του Navigation API (Chrome/Edge 102+): κάθε `traverse` αμέσως μετά το πάτημα ενός πλευρικού κουμπιού μπλοκάρεται. Αν η γειτονική καταχώριση ιστορικού ανήκει σε άλλο έγγραφο, εισάγεται πρώτα μια καταχώριση φρουράς με το ίδιο URL ώστε η μετάβαση να μπορεί να ακυρωθεί· σε αυτή την περίπτωση ένα κανονικό Πίσω μπορεί να χρειαστεί ένα επιπλέον κλικ. Η φρουρά δημιουργείται μόνο όντως πατηθεί πλευρικό κουμπί, οπότε οι ρυθμίσεις με αντιστοίχιση σε πλήκτρα δεν επηρεάζονται.""",
 }
 
-V2_TECH_NOTE = """**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`."""
+V2_TECH_NOTE = """**v2.1.0 in-player step button:** a small `±Ns` button sits in the top-right corner of the video. Click it to pick a preset (5 / 10 / 15 / 30 / 60 / 120 s) or type a custom value; **Save** writes it to Stash's plugin settings through `configurePlugin`, so the value persists across reloads and browsers and takes effect immediately. It is an absolutely positioned overlay inside `.video-js` — it does not modify the VideoJS control bar or any React-owned node. Turn it off with `showStepButton`.
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`."""
 
 
 def nav_for(active_suffix):
@@ -361,9 +381,10 @@ Local Path: (leave empty)
 
 
 def build(suffix, d):
+    descs = d["desc"][:4] + [STEP_DESC.get(suffix, STEP_DESC[""])] + d["desc"][4:]
     rows = "\n".join(
         "| `%s` | %s | %s |" % (k, default, desc)
-        for k, default, desc in zip(SETTING_KEYS, SETTING_DEFAULTS, d["desc"])
+        for k, default, desc in zip(SETTING_KEYS, SETTING_DEFAULTS, descs)
     )
     values = {
         "NAV": nav_for(suffix),
