@@ -3,6 +3,6 @@
   metadata:
     description: Use the mouse side buttons (X1 / browser back, X2 / browser forward) to seek the scene player, block browser-level navigation via the Navigation API, and set the seek step from a control-bar button.
   version: 2.1.1
-  date: 2026-11-15 16:31:19
+  date: 2026-11-15 16:47:14
   path: sideButtonSeek.zip
-  sha256: f0d373238a324013f2a1d4d06f73d207e296c7d23ffd0866f062e6a9f31fc287
+  sha256: be1fdebf7b5b736ecd0149af6a1bd469ef8b1911b8e97b290d16b0bee352bbf3

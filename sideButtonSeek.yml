@@ -30,7 +30,7 @@ settings:
 
   showStepButton:
     displayName: Show seek-step button on the player
-    description: "Show a small ±Ns button in the top-right corner of the video. Click it to change how many seconds each side-button press jumps; the value is saved to the plugin settings."
+    description: "Show a small ±Ns button at the right end of the VideoJS control bar. Click it to change how many seconds each side-button press jumps; the value is saved to the plugin settings."
     type: BOOLEAN
 
   preventNavigation:
