@@ -1,22 +1,33 @@
 /*
- * Side Button Seek - a Stash UI plugin
+ * Side Button Seek - a Stash UI plugin (v2)
  * ------------------------------------------------------------------
  * Mouse side buttons are MouseEvent.button 3 (X1 / browser back) and
  * 4 (X2 / browser forward). Stash does not bind them, and Chromium maps
- * them to history back/forward, so pressing them either does nothing or
- * navigates away. This plugin captures those events over the VideoJS
- * player, cancels the navigation default action and seeks the video.
+ * them to history back/forward at the BROWSER level: calling
+ * preventDefault() on mousedown / auxclick does NOT stop the navigation.
+ *
+ * v2 fixes this with the Navigation API (Chrome/Edge 102+):
+ *
+ *   - A traverse to a history entry belonging to another document has
+ *     `cancelable === false`, so a web page cannot cancel it.
+ *   - A traverse to a same-document entry (one created with pushState)
+ *     has `cancelable === true` and CAN be cancelled.
+ *   - On the first side-button press we therefore push one same-URL
+ *     "guard" entry when the neighbouring history entry is cross-document.
+ *     This makes the browser's back/forward traversal same-document, and
+ *     our `navigate` listener cancels it while we seek the video instead.
+ *   - The guard is created lazily (only on a real side-button press) and
+ *     only once, so pages where the side buttons are remapped to keyboard
+ *     keys are left completely untouched.
+ *
+ * Fallback: if a mouse driver reports the side buttons as keyboard keys
+ * or as an OS app command, no button 3/4 DOM event reaches the page at
+ * all. Remap the buttons to Left/Right arrow keys in the mouse driver
+ * (MetapandaMouse, X-Mouse Button Control, Logitech G Hub, Razer
+ * Synapse, AutoHotkey) and Stash's built-in shortcuts do the seeking.
  *
  * Install: put this file next to sideButtonSeek.yml in the Stash plugins
  * directory, then Settings > Plugins > Reload plugins, then refresh (F5).
- * Settings are read from the plugin settings UI via GraphQL; refresh the
- * page after changing them (or run SideButtonSeek.reload() in devtools).
- *
- * Note: a few Chromium/Edge builds perform the history navigation at the
- * browser level and ignore preventDefault() for X1/X2. If the page still
- * goes back, remap the side buttons to the Left/Right arrow keys in your
- * mouse driver (X-Mouse Button Control / Logitech / Razer / AutoHotkey).
- * Stash's built-in arrow shortcuts will then do the seeking.
  *
  * Console helpers:
  *   SideButtonSeek.settings          - active configuration
@@ -24,14 +35,17 @@
  *   SideButtonSeek.seek(10)          - seek by an arbitrary amount
  *   SideButtonSeek.simulate(3|4)     - trigger a button without a mouse
  *   SideButtonSeek.player            - the current VideoJS player
+ *   SideButtonSeek.guard             - Navigation API guard diagnostics
  */
 (function () {
   "use strict";
 
   var ID = "sideButtonSeek";
-  var VERSION = "1.0.0";
+  var VERSION = "2.0.0";
   var BACK = 3;    // X1 / browser back
   var FORWARD = 4; // X2 / browser forward
+  var NAV_WINDOW_MS = 3000; // hard upper bound for a pending guard
+  var DISARM_MS = 250;      // release the guard shortly after the last phase
 
   var DEFAULTS = Object.freeze({
     seekSeconds: 10,
@@ -48,8 +62,17 @@
   var listeners = [];
   var lastDownAt = 0;
   var lastDownButton = -1;
+  var lastSideAt = 0;
+  var guardArmed = false; // one physical press may cancel one traversal
+  var disarmTimer = null;
+  var guardPushes = 0;
+  var blockedTraversals = 0;
   var osdEl = null;
   var osdTimer = null;
+
+  var navSupported = typeof window.navigation !== "undefined" &&
+    typeof window.navigation.addEventListener === "function" &&
+    typeof window.navigation.entries === "function";
 
   // Allow a clean re-injection if Stash ever loads this file twice.
   if (window.SideButtonSeek && typeof window.SideButtonSeek._disable === "function") {
@@ -216,20 +239,121 @@
     return result;
   }
 
+  /* ---------------------------------------------------------------- *
+   * Navigation API guard.
+   *
+   * history traversal to a cross-document entry is NOT cancelable, while
+   * traversal to a same-document entry IS. Pushing a same-URL entry with
+   * pushState makes the browser's pending back/forward traverse land on
+   * an entry that shares our Document, so we can cancel it. pushState
+   * also truncates the forward stack, which neutralises X2 as well.
+   * ---------------------------------------------------------------- */
+  function neighbourInfo(button) {
+    if (!navSupported) return null;
+    try {
+      var entries = window.navigation.entries();
+      var current = entries.indexOf(window.navigation.currentEntry);
+      var target = button === BACK ? entries[current - 1] : entries[current + 1];
+      return {
+        index: current,
+        count: entries.length,
+        hasTarget: !!target,
+        sameDocument: target ? target.sameDocument : null
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function ensureGuard(button) {
+    if (!cfg.preventNavigation || !navSupported) return;
+    var info = neighbourInfo(button);
+    if (!info) return;
+    // Be conservative: anything that is not explicitly same-document is
+    // treated as a risky cross-document traversal.
+    var risky = info.hasTarget && info.sameDocument !== true;
+    if (!risky) return;
+    try {
+      window.history.pushState({ sideButtonSeekGuard: true }, "", window.location.href);
+      guardPushes++;
+      log("guard entry pushed", { button: button, before: info });
+    } catch (err) {
+      log("guard push failed", err);
+    }
+  }
+
+  function onNavigate(e) {
+    if (!cfg.preventNavigation) return;
+    if (e.navigationType !== "traverse") return;
+    var recentSide = Date.now() - lastSideAt < NAV_WINDOW_MS;
+    var url = e.destination && e.destination.url;
+    log("traverse", {
+      cancelable: e.cancelable,
+      recentSide: recentSide,
+      destination: url
+    });
+    // A normal Back/Forward button press has no preceding side-button
+    // mousedown, so the guard is not armed and the traversal passes.
+    if (!recentSide || !guardArmed) return;
+    if (e.cancelable) {
+      e.preventDefault();
+      blockedTraversals++;
+      // Consume the guard: one physical press cancels at most one
+      // traversal, so a normal Back click right afterwards still works.
+      guardArmed = false;
+      lastSideAt = 0;
+      log("blocked browser history navigation");
+    } else {
+      log("cross-document traversal could not be cancelled; " +
+          "try remapping the side buttons in the mouse driver");
+    }
+  }
+
+  // If a press produced no traversal at all (for example X2 when the
+  // forward stack is empty), drop the guard quickly so an immediately
+  // following normal Back click is not swallowed.
+  function scheduleDisarm() {
+    clearTimeout(disarmTimer);
+    disarmTimer = setTimeout(function () {
+      guardArmed = false;
+    }, DISARM_MS);
+  }
+
+  function addListener(target, type, handler, options) {
+    target.addEventListener(type, handler, options);
+    listeners.push({ target: target, type: type, handler: handler, options: options });
+  }
+
   function onMouseEvent(e) {
     var button = e.button;
     if (button !== BACK && button !== FORWARD) return;
     if (!inPlayer(e.target)) return;
 
-    // The important part: cancel the browser's history back/forward
-    // default action on every phase of the click.
+    // Keep the guard window alive across every phase of one physical
+    // press (pointerdown -> mousedown -> mouseup -> auxclick), so long
+    // presses still get their traversal cancelled.
+    lastSideAt = Date.now();
+
+    // Cancelling mouse events alone cannot stop browser-level history
+    // navigation, but it is still worth doing for other default actions.
     if (cfg.preventNavigation && e.cancelable) {
       e.preventDefault();
     }
 
+    var isDown = e.type === "pointerdown" || e.type === "mousedown";
+    if (isDown) {
+      clearTimeout(disarmTimer);
+      guardArmed = true;
+    } else {
+      scheduleDisarm();
+      return;
+    }
+
+    // Must run synchronously, before the browser starts the traversal.
+    ensureGuard(button);
+
     // Seek once per physical press. pointerdown and mousedown both fire
     // for a single press, so de-duplicate by button + short time window.
-    if (e.type !== "pointerdown" && e.type !== "mousedown") return;
     var now = Date.now();
     if (now - lastDownAt < 150 && lastDownButton === button) return;
     lastDownAt = now;
@@ -240,32 +364,52 @@
 
   function init() {
     EVENTS.forEach(function (type) {
-      var options = { capture: true, passive: false };
-      document.addEventListener(type, onMouseEvent, options);
-      listeners.push({ type: type, options: options });
+      addListener(document, type, onMouseEvent, { capture: true, passive: false });
     });
+
+    if (navSupported) {
+      addListener(window.navigation, "navigate", onNavigate, { capture: false });
+    } else {
+      console.warn("[" + ID + "] Navigation API unavailable: browser-level " +
+        "back/forward cannot be blocked on this browser (needs Chrome/Edge 102+)");
+    }
 
     window.SideButtonSeek = {
       version: VERSION,
       defaults: DEFAULTS,
       get settings() { return Object.assign({}, cfg); },
       get player() { return getPlayer(); },
+      get guard() {
+        return {
+          navigationApi: navSupported,
+          windowMs: NAV_WINDOW_MS,
+          lastSideAt: lastSideAt,
+          guardPushes: guardPushes,
+          blockedTraversals: blockedTraversals,
+          historyLength: window.history.length,
+          entries: navSupported ? window.navigation.entries().map(function (x) {
+            return { url: x.url, sameDocument: x.sameDocument };
+          }) : null
+        };
+      },
       reload: loadSettings,
       seek: function (delta) { return seek(delta); },
       simulate: function (button) { return doSeek(button === undefined ? FORWARD : button); },
       _disable: function () {
         listeners.forEach(function (l) {
-          document.removeEventListener(l.type, onMouseEvent, l.options);
+          l.target.removeEventListener(l.type, l.handler, l.options);
         });
         listeners = [];
         clearTimeout(osdTimer);
+        clearTimeout(disarmTimer);
         if (osdEl) osdEl.remove();
         osdEl = null;
       }
     };
 
     loadSettings();
-    console.log("[" + ID + "] v" + VERSION + " loaded: X1 = back, X2 = forward");
+    console.log("[" + ID + "] v" + VERSION + " loaded: X1 = back, X2 = forward" +
+      (navSupported ? " (Navigation API guard active)" : " (legacy mode)"));
   }
 
   init();

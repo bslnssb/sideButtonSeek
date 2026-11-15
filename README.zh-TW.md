@@ -48,7 +48,7 @@ Local Path: (leave empty)
 設定值來自 Stash 外掛設定。修改後重新整理頁面，或執行 `SideButtonSeek.reload()`。
 
 ## 瀏覽器限制
-部分 Chromium/Edge 版本在瀏覽器層處理導覽，會忽略網頁對 X1/X2 的 `preventDefault()`。若頁面仍後退，請在滑鼠驅動（X-Mouse Button Control、Logitech G Hub、Razer Synapse、AutoHotkey）把側鍵對應成 **← / → 方向鍵**，由 Stash 內建快捷鍵跳轉。
+從 **v2.0.0** 起，外掛透過 Navigation API（Chrome/Edge 102+）取消瀏覽器層的歷程導覽：側鍵按下後緊接的 `traverse` 會被阻擋。若相鄰的歷程項目屬於另一份文件，會先插入一筆同 URL 的守衛項目讓導覽可被取消；此時一般的「上一頁」可能要多按一次。守衛項目只在真正按下側鍵時才建立，因此已將側鍵對應成鍵盤按鍵的環境完全不受影響。
 
 某些滑鼠驅動把側鍵回報為鍵盤按鍵或系統命令，網頁收不到 button 3/4 事件，同樣需用驅動改鍵。
 
@@ -57,6 +57,8 @@ Local Path: (leave empty)
 
 ## 實作原理
 Stash 注入外掛的 UI JavaScript。腳本在擷取階段監聽 `pointerdown`、`mousedown`、`mouseup`、`auxclick`，只接受 `.video-js` 內 `button === 3` / `4` 的事件，呼叫 `preventDefault()`，再依序透過 `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → `<video>` 跳轉。設定由 `{ configuration { plugins } }` 讀取。
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## 授權
 MIT — 詳見 [LICENSE](LICENSE)。

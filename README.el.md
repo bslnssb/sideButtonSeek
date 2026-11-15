@@ -48,7 +48,7 @@ Local Path: (leave empty)
 Οι ρυθμίσεις διαβάζονται από τη διαμόρφωση plugins του Stash. Μετά από αλλαγή, ανανεώστε ή καλέστε `SideButtonSeek.reload()`.
 
 ## Περιορισμοί browser
-Ορισμένες εκδόσεις Chromium/Edge χειρίζονται την πλοήγηση σε επίπεδο browser και αγνοούν το `preventDefault()` για X1/X2. Αν η σελίδα εξακολουθεί να πηγαίνει πίσω, αντιστοιχίστε τα πλαϊνά πλήκτρα στα **← / →** στο πρόγραμμα οδήγησης του ποντικιού (X-Mouse Button Control, Logitech G Hub, Razer Synapse, AutoHotkey)· οι ενσωματωμένες συντομεύσεις του Stash θα κάνουν την αναζήτηση.
+Από την **v2.0.0** το πρόσθετο ακυρώνει και την πλοήγηση ιστορικού στο επίπεδο του προγράμματος περιήγησης μέσω του Navigation API (Chrome/Edge 102+): κάθε `traverse` αμέσως μετά το πάτημα ενός πλευρικού κουμπιού μπλοκάρεται. Αν η γειτονική καταχώριση ιστορικού ανήκει σε άλλο έγγραφο, εισάγεται πρώτα μια καταχώριση φρουράς με το ίδιο URL ώστε η μετάβαση να μπορεί να ακυρωθεί· σε αυτή την περίπτωση ένα κανονικό Πίσω μπορεί να χρειαστεί ένα επιπλέον κλικ. Η φρουρά δημιουργείται μόνο όντως πατηθεί πλευρικό κουμπί, οπότε οι ρυθμίσεις με αντιστοίχιση σε πλήκτρα δεν επηρεάζονται.
 
 Κάποια προγράμματα οδήγησης στέλνουν τα πλαϊνά πλήκτρα ως πλήκτρα πληκτρολογίου ή εντολή συστήματος, οπότε τα γεγονότα button 3/4 δεν φτάνουν ποτέ στη σελίδα. Η ίδια αντιστοίχιση το λύνει.
 
@@ -57,6 +57,8 @@ Local Path: (leave empty)
 
 ## Πώς λειτουργεί
 Το Stash εισάγει το UI JavaScript του plugin. Ακούει `pointerdown`, `mousedown`, `mouseup` και `auxclick` στη φάση capture, δέχεται μόνο `button === 3` / `4` μέσα στο `.video-js`, καλεί `preventDefault()` και κάνει αναζήτηση μέσω `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → το στοιχείο `<video>`. Οι ρυθμίσεις προέρχονται από `{ configuration { plugins } }`.
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## Άδεια
 MIT — δείτε το [LICENSE](LICENSE).

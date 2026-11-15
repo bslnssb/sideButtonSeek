@@ -48,7 +48,7 @@ Local Path: (leave empty)
 設定は Stash のプラグイン設定から読み込みます。変更後は再読み込み、または `SideButtonSeek.reload()` を実行してください。
 
 ## ブラウザの制限
-一部の Chromium/Edge はブラウザ層で履歴移動を行い、X1/X2 の `preventDefault()` を無視します。ページが戻る場合は、マウスドライバ（X-Mouse Button Control、Logicool G HUB、Razer Synapse、AutoHotkey）で側ボタンを **← / → キー** に割り当て、Stash 標準のショートカットを使ってください。
+**v2.0.0** 以降は Navigation API（Chrome/Edge 102+）でブラウザレベルの履歴移動も取り消します。側ボタン直後の `traverse` をブロックし、隣接する履歴項目が別文書の場合は同じ URL のガード項目を 1 件挿入して取消可能にします（この場合、通常の「戻る」はもう一度押す必要があります）。ガードは実際に側ボタンを押したときだけ作られるため、側ボタンをキーボードに割り当て済みの環境には一切影響しません。
 
 ドライバによっては側ボタンをキーボード入力や OS コマンドとして送るため、button 3/4 の DOM イベントが届きません。この場合もドライバでの割り当て変更で解決します。
 
@@ -57,6 +57,8 @@ Local Path: (leave empty)
 
 ## 仕組み
 Stash が UI JavaScript を注入します。`pointerdown`／`mousedown`／`mouseup`／`auxclick` をキャプチャ段階で監視し、`.video-js` 内の `button === 3` / `4` のみを受け付け、`preventDefault()` を呼んだ後、`PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → `<video>` の順にシークします。設定は `{ configuration { plugins } }` から取得します。
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## ライセンス
 MIT — [LICENSE](LICENSE) を参照。

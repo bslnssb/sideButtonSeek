@@ -48,7 +48,7 @@ Local Path: (leave empty)
 การตั้งค่าอ่านจากคอนฟิกปลั๊กอินของ Stash หลังเปลี่ยนให้รีเฟรชหน้า หรือรัน `SideButtonSeek.reload()`
 
 ## ข้อจำกัดของเบราว์เซอร์
-Chromium/Edge บางรุ่นจัดการการนำทางในระดับเบราว์เซอร์และละเลย `preventDefault()` สำหรับ X1/X2 หากหน้ายังย้อนกลับ ให้ map ปุ่มด้านข้างเป็น **← / →** ในไดรเวอร์เมาส์ (X-Mouse Button Control, Logitech G Hub, Razer Synapse, AutoHotkey) แล้วใช้ทางลัดของ Stash แทน
+ตั้งแต่ **v2.0.0** ปลั๊กอินใช้ Navigation API (Chrome/Edge 102+) ยกเลิกการนำทางประวัติในระดับเบราว์เซอร์ด้วย: `traverse` ที่เกิดขึ้นทันทีหลังกดปุ่มด้านข้างจะถูกบล็อก หากรายการประวัติที่อยู่ติดกันเป็นของเอกสารอื่น ปลั๊กอินจะแทรกรายการป้องกันที่มี URL เดียวกันก่อนเพื่อให้ยกเลิกได้ ในกรณีนี้การกดย้อนกลับปกติอาจต้องกดเพิ่มอีกครั้ง รายการป้องกันจะถูกสร้างเฉพาะเมื่อมีการกดปุ่มด้านข้างจริง จึงไม่ส่งผลกับเครื่องที่แมปปุ่มด้านข้างเป็นปุ่มคีย์บอร์ด
 
 ไดรเวอร์บางตัวส่งปุ่มด้านข้างเป็นปุ่มคีย์บอร์ดหรือคำสั่งระบบ ทำให้เหตุการณ์ button 3/4 ไม่ถึงหน้าเว็บ วิธีเดียวกันช่วยได้
 
@@ -57,6 +57,8 @@ Chromium/Edge บางรุ่นจัดการการนำทางใ
 
 ## วิธีทำงาน
 Stash แทรก JavaScript ส่วน UI ของปลั๊กอิน โดยฟัง `pointerdown`, `mousedown`, `mouseup`, `auxclick` ในระยะ capture รับเฉพาะ `button === 3` / `4` ภายใน `.video-js` เรียก `preventDefault()` แล้วกรอผ่าน `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → `<video>` การตั้งค่ามาจาก `{ configuration { plugins } }`
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## สัญญาอนุญาต
 MIT — ดู [LICENSE](LICENSE)

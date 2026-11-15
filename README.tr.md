@@ -48,7 +48,7 @@ Local Path: (leave empty)
 Ayarlar Stash eklenti yapılandırmasından okunur. Değişiklikten sonra sayfayı yenileyin veya `SideButtonSeek.reload()` çağırın.
 
 ## Tarayıcı sınırlamaları
-Bazı Chromium/Edge sürümleri geçmiş gezinmesini tarayıcı düzeyinde yapar ve X1/X2 için `preventDefault()` çağrısını yok sayar. Sayfa yine geri gidiyorsa, fare sürücüsünde (X-Mouse Button Control, Logitech G Hub, Razer Synapse, AutoHotkey) yan tuşları **← / →** tuşlarına atayın; Stash'in yerleşik kısayolları sarmayı yapar.
+**v2.0.0** sürümünden itibaren eklenti, Navigation API (Chrome/Edge 102+) ile tarayıcı düzeyindeki geçmiş gezinmesini de iptal eder: yan tuşa basılmasının hemen ardından gelen `traverse` engellenir. Komşu geçmiş kaydı başka bir belgeye aitse, geçişi iptal edilebilir kılmak için önce aynı URL'ye sahip bir koruma kaydı eklenir; bu durumda normal Geri tuşuna bir kez daha basmak gerekebilir. Koruma yalnızca gerçekten yan tuşa basıldığında oluşturulur, bu yüzden tuşları klavye tuşlarına eşlenmiş kurulumlar hiç etkilenmez.
 
 Bazı sürücüler yan tuşları klavye tuşu veya sistem komutu olarak bildirir; button 3/4 olayı sayfaya hiç ulaşmaz. Aynı yeniden atama bunu da çözer.
 
@@ -57,6 +57,8 @@ Bir sahne açıp yan tuşa basın: süre yaklaşık 10 saniye atlamalı ve küç
 
 ## Nasıl çalışır
 Stash eklentinin UI JavaScript'ini ekler. `pointerdown`, `mousedown`, `mouseup` ve `auxclick` olaylarını yakalama aşamasında dinler, `.video-js` içinde yalnızca `button === 3` / `4` kabul eder, `preventDefault()` çağırır ve `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → `<video>` öğesi üzerinden sarar. Ayarlar `{ configuration { plugins } }` sorgusundan gelir.
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## Lisans
 MIT — bkz. [LICENSE](LICENSE).

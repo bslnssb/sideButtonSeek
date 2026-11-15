@@ -48,7 +48,7 @@ Copy `sideButtonSeek.yml`, `sideButtonSeek.js` and `manifest` into `plugins/side
 Settings are read from Stash's plugin configuration. Refresh the page (or run `SideButtonSeek.reload()` in devtools) after changing them.
 
 ## Browser limitations
-Some Chromium/Edge builds perform history navigation at the browser level and ignore `preventDefault()` for X1/X2. If the page still goes back, remap the side buttons to **Left / Right arrow keys** in your mouse driver (X-Mouse Button Control, Logitech G Hub, Razer Synapse, AutoHotkey). Stash's built-in arrow shortcuts then do the seeking.
+Since **v2.0.0** the plugin also cancels browser-level history navigation through the Navigation API (Chrome/Edge 102+): any `traverse` immediately after a side-button press is blocked. If the neighbouring history entry belongs to another document, one same-URL guard entry is inserted first so the traversal becomes cancellable — in that case a normal Back press may need one extra click. The guard is created lazily, only on a real side-button press, so setups where the buttons are remapped to keyboard keys are completely unaffected.
 
 Some mouse drivers report the side buttons as keyboard keys or as an OS app command instead of mouse buttons 3/4, so no DOM event reaches the page. The same driver remap solves that too.
 
@@ -57,6 +57,8 @@ Open a scene and press a side button: the time should jump about 10 seconds and 
 
 ## How it works
 Stash injects the plugin's UI JavaScript. It listens for `pointerdown`, `mousedown`, `mouseup` and `auxclick` in the capture phase, accepts only `button === 3` / `4` inside `.video-js`, calls `preventDefault()`, then seeks via `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → the `<video>` element. Settings come from `{ configuration { plugins } }`.
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## License
 MIT — see [LICENSE](LICENSE).

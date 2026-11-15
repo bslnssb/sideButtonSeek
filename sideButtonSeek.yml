@@ -1,6 +1,6 @@
 name: Side Button Seek
-description: Use the mouse side buttons (X1 / browser back and X2 / browser forward) to seek the scene player backwards and forwards. Blocks the browser back/forward navigation while the pointer is over the player.
-version: 1.0.0
+description: Use the mouse side buttons (X1 / browser back and X2 / browser forward) to seek the scene player backwards and forwards. Blocks browser-level back/forward navigation via the Navigation API while the pointer is over the player.
+version: 2.0.0
 url: https://github.com/bslnssb/sideButtonSeek
 
 ui:
@@ -30,7 +30,7 @@ settings:
 
   preventNavigation:
     displayName: Block browser back/forward navigation
-    description: "Call preventDefault() on side-button events so the browser does not leave the page. Some Chromium builds handle this at browser level; see the notes in the plugin JS header."
+    description: "Cancel the browser-level back/forward traversal with the Navigation API (Chrome/Edge 102+) and preventDefault() on side-button events. Turn off to keep normal browser navigation."
     type: BOOLEAN
 
   debug:

@@ -48,7 +48,7 @@ Sao chép `sideButtonSeek.yml`, `sideButtonSeek.js` và `manifest` vào `plugins
 Thiết lập đọc từ cấu hình plugin của Stash. Sau khi đổi, hãy tải lại trang hoặc chạy `SideButtonSeek.reload()`.
 
 ## Giới hạn trình duyệt
-Một số bản Chromium/Edge xử lý điều hướng lịch sử ở cấp trình duyệt và bỏ qua `preventDefault()` cho X1/X2. Nếu trang vẫn lùi lại, hãy gán nút hông thành **← / →** trong driver chuột (X-Mouse Button Control, Logitech G Hub, Razer Synapse, AutoHotkey); phím tắt sẵn của Stash sẽ tua thay.
+Từ **v2.0.0**, plugin dùng Navigation API (Chrome/Edge 102+) để hủy cả thao tác điều hướng lịch sử ở cấp trình duyệt: mọi `traverse` ngay sau khi nhấn nút bên sẽ bị chặn. Nếu mục lịch sử kế cận thuộc một tài liệu khác, plugin chèn một mục bảo vệ có cùng URL để có thể hủy bước chuyển; khi đó nút Quay lại bình thường có thể cần nhấn thêm một lần. Mục bảo vệ chỉ được tạo khi thực sự nhấn nút bên, nên các máy đã ánh xạ nút bên thành phím bàn phím hoàn toàn không bị ảnh hưởng.
 
 Một số driver gửi nút hông dưới dạng phím bàn phím hoặc lệnh hệ thống, nên sự kiện button 3/4 không tới được trang. Cách gán lại trong driver cũng giải quyết được.
 
@@ -57,6 +57,8 @@ Mở một cảnh và nhấn nút hông: thời gian nhảy khoảng 10 giây v�
 
 ## Cách hoạt động
 Stash chèn JavaScript giao diện của plugin. Nó lắng nghe `pointerdown`, `mousedown`, `mouseup`, `auxclick` ở pha capture, chỉ nhận `button === 3` / `4` trong `.video-js`, gọi `preventDefault()` rồi tua qua `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → phần tử `<video>`. Thiết lập lấy từ `{ configuration { plugins } }`.
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## Giấy phép
 MIT — xem [LICENSE](LICENSE).

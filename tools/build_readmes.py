@@ -273,6 +273,29 @@ SETTING_KEYS = ["seekSeconds", "swapButtons", "onlyInPlayer", "showOsd", "preven
 SETTING_DEFAULTS = ["10", "false", "true", "true", "true", "false"]
 
 
+# v2.0.0: the plugin now cancels browser-level history traversal through the
+# Navigation API. Replace the old "nothing can be done in the page" paragraph
+# with an accurate description, in every language.
+V2_LIM1 = {
+"": """Since **v2.0.0** the plugin also cancels browser-level history navigation through the Navigation API (Chrome/Edge 102+): any `traverse` immediately after a side-button press is blocked. If the neighbouring history entry belongs to another document, one same-URL guard entry is inserted first so the traversal becomes cancellable — in that case a normal Back press may need one extra click. The guard is created lazily, only on a real side-button press, so setups where the buttons are remapped to keyboard keys are completely unaffected.""",
+"zh-CN": """从 **v2.0.0** 起，插件通过 Navigation API（Chrome/Edge 102+）取消浏览器层的历史跳转：侧键按下后紧接着的 `traverse` 导航会被阻止。若相邻历史记录属于另一个文档，插件会先插入一条同 URL 的守卫记录，使该跳转变为可取消；这种情况下普通「后退」可能需要多按一次。守卫记录只在真正按下侧键时按需创建，因此已把侧键映射为键盘按键的环境完全不受影响。""",
+"zh-TW": """從 **v2.0.0** 起，外掛透過 Navigation API（Chrome/Edge 102+）取消瀏覽器層的歷程導覽：側鍵按下後緊接的 `traverse` 會被阻擋。若相鄰的歷程項目屬於另一份文件，會先插入一筆同 URL 的守衛項目讓導覽可被取消；此時一般的「上一頁」可能要多按一次。守衛項目只在真正按下側鍵時才建立，因此已將側鍵對應成鍵盤按鍵的環境完全不受影響。""",
+"ja": """**v2.0.0** 以降は Navigation API（Chrome/Edge 102+）でブラウザレベルの履歴移動も取り消します。側ボタン直後の `traverse` をブロックし、隣接する履歴項目が別文書の場合は同じ URL のガード項目を 1 件挿入して取消可能にします（この場合、通常の「戻る」はもう一度押す必要があります）。ガードは実際に側ボタンを押したときだけ作られるため、側ボタンをキーボードに割り当て済みの環境には一切影響しません。""",
+"ko": """**v2.0.0** 부터는 Navigation API(Chrome/Edge 102+)로 브라우저 수준의 방문 기록 이동도 취소합니다. 측면 버튼 직후의 `traverse`를 차단하며, 인접한 기록 항목이 다른 문서에 속하면 같은 URL의 가드 항목을 하나 넣어 취소 가능하게 만듭니다(이 경우 일반 뒤로 가기를 한 번 더 눌러야 할 수 있습니다). 가드는 실제로 측면 버튼을 눌렀을 때만 만들어지므로 버튼을 키보드 키로 매핑한 환경에는 아무 영향이 없습니다.""",
+"ru": """Начиная с **v2.0.0** плагин отменяет переходы в истории на уровне браузера через Navigation API (Chrome/Edge 102+): любой `traverse` сразу после нажатия боковой кнопки блокируется. Если соседняя запись истории принадлежит другому документу, сначала вставляется запись-страж с тем же URL, чтобы переход можно было отменить — в этом случае обычный «Назад» может потребовать лишнего нажатия. Страж создаётся только при реальном нажатии боковой кнопки, поэтому конфигурации с переназначенными на клавиатуру кнопками не затрагиваются.""",
+"de": """Seit **v2.0.0** blockiert das Plugin auch die Navigation auf Browser-Ebene über die Navigation API (Chrome/Edge 102+): Jeder `traverse` direkt nach einem Seitentasten-Druck wird abgebrochen. Gehört der benachbarte Verlaufseintrag zu einem anderen Dokument, wird zuerst ein Wächter-Eintrag mit gleicher URL eingefügt, damit der Übergang abbrechbar wird — in diesem Fall kann ein normaler Zurück-Klick einmal zusätzlich nötig sein. Der Wächter entsteht nur bei einem echten Tastendruck; Umgebungen mit auf Tastaturtasten umgemappten Seitentasten bleiben völlig unberührt.""",
+"es": """Desde **v2.0.0** el plugin también cancela la navegación del historial a nivel de navegador mediante la Navigation API (Chrome/Edge 102+): se bloquea cualquier `traverse` inmediatamente posterior a pulsar un botón lateral. Si la entrada vecina del historial pertenece a otro documento, se inserta antes una entrada de guarda con la misma URL para que el salto sea cancelable; en ese caso un Atrás normal puede requerir un clic adicional. La guarda se crea solo al pulsar realmente el botón lateral, por lo que los equipos que han reasignado los botones a teclas no se ven afectados.""",
+"fr": """Depuis la **v2.0.0**, le plugin annule aussi la navigation au niveau du navigateur via la Navigation API (Chrome/Edge 102+) : tout `traverse` suivant immédiatement un appui sur un bouton latéral est bloqué. Si l'entrée d'historique voisine appartient à un autre document, une entrée de garde avec la même URL est insérée pour rendre le saut annulable — dans ce cas, un Retour normal peut demander un clic supplémentaire. La garde n'est créée qu'à l'appui réel sur le bouton latéral : les configurations qui remappent les boutons en touches clavier ne sont pas affectées.""",
+"pt": """A partir da **v2.0.0** o plugin também cancela a navegação do histórico ao nível do navegador através da Navigation API (Chrome/Edge 102+): qualquer `traverse` logo após pressionar um botão lateral é bloqueado. Se a entrada vizinha do histórico pertencer a outro documento, é inserida primeiro uma entrada de guarda com o mesmo URL para tornar o salto cancelável; nesse caso um Voltar normal pode exigir um clique extra. A guarda só é criada ao pressionar realmente o botão lateral, pelo que os sistemas com os botões remapeados para teclas não são afetados.""",
+"tr": """**v2.0.0** sürümünden itibaren eklenti, Navigation API (Chrome/Edge 102+) ile tarayıcı düzeyindeki geçmiş gezinmesini de iptal eder: yan tuşa basılmasının hemen ardından gelen `traverse` engellenir. Komşu geçmiş kaydı başka bir belgeye aitse, geçişi iptal edilebilir kılmak için önce aynı URL'ye sahip bir koruma kaydı eklenir; bu durumda normal Geri tuşuna bir kez daha basmak gerekebilir. Koruma yalnızca gerçekten yan tuşa basıldığında oluşturulur, bu yüzden tuşları klavye tuşlarına eşlenmiş kurulumlar hiç etkilenmez.""",
+"vi": """Từ **v2.0.0**, plugin dùng Navigation API (Chrome/Edge 102+) để hủy cả thao tác điều hướng lịch sử ở cấp trình duyệt: mọi `traverse` ngay sau khi nhấn nút bên sẽ bị chặn. Nếu mục lịch sử kế cận thuộc một tài liệu khác, plugin chèn một mục bảo vệ có cùng URL để có thể hủy bước chuyển; khi đó nút Quay lại bình thường có thể cần nhấn thêm một lần. Mục bảo vệ chỉ được tạo khi thực sự nhấn nút bên, nên các máy đã ánh xạ nút bên thành phím bàn phím hoàn toàn không bị ảnh hưởng.""",
+"th": """ตั้งแต่ **v2.0.0** ปลั๊กอินใช้ Navigation API (Chrome/Edge 102+) ยกเลิกการนำทางประวัติในระดับเบราว์เซอร์ด้วย: `traverse` ที่เกิดขึ้นทันทีหลังกดปุ่มด้านข้างจะถูกบล็อก หากรายการประวัติที่อยู่ติดกันเป็นของเอกสารอื่น ปลั๊กอินจะแทรกรายการป้องกันที่มี URL เดียวกันก่อนเพื่อให้ยกเลิกได้ ในกรณีนี้การกดย้อนกลับปกติอาจต้องกดเพิ่มอีกครั้ง รายการป้องกันจะถูกสร้างเฉพาะเมื่อมีการกดปุ่มด้านข้างจริง จึงไม่ส่งผลกับเครื่องที่แมปปุ่มด้านข้างเป็นปุ่มคีย์บอร์ด""",
+"el": """Από την **v2.0.0** το πρόσθετο ακυρώνει και την πλοήγηση ιστορικού στο επίπεδο του προγράμματος περιήγησης μέσω του Navigation API (Chrome/Edge 102+): κάθε `traverse` αμέσως μετά το πάτημα ενός πλευρικού κουμπιού μπλοκάρεται. Αν η γειτονική καταχώριση ιστορικού ανήκει σε άλλο έγγραφο, εισάγεται πρώτα μια καταχώριση φρουράς με το ίδιο URL ώστε η μετάβαση να μπορεί να ακυρωθεί· σε αυτή την περίπτωση ένα κανονικό Πίσω μπορεί να χρειαστεί ένα επιπλέον κλικ. Η φρουρά δημιουργείται μόνο όντως πατηθεί πλευρικό κουμπί, οπότε οι ρυθμίσεις με αντιστοίχιση σε πλήκτρα δεν επηρεάζονται.""",
+}
+
+V2_TECH_NOTE = """**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`."""
+
+
 def nav_for(active_suffix):
     parts = []
     for suffix, label in LANGS:
@@ -330,6 +353,8 @@ Local Path: (leave empty)
 ## @@H6@@
 @@HOW@@
 
+@@V2TECH@@
+
 ## @@H7@@
 @@LIC@@
 """
@@ -355,9 +380,10 @@ def build(suffix, d):
         "TH0": d["th"][0], "TH1": d["th"][1], "TH2": d["th"][2],
         "SETROWS": rows,
         "NOTE": d["note"],
-        "LIM1": d["lim1"], "LIM2": d["lim2"],
+        "LIM1": V2_LIM1.get(suffix, V2_LIM1[""]), "LIM2": d["lim2"],
         "VERIFY": d["verify"],
         "HOW": d["how"],
+        "V2TECH": V2_TECH_NOTE,
         "LIC": d["lic"],
     }
     out = TEMPLATE

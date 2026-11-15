@@ -48,7 +48,7 @@ Local Path: (leave empty)
 설정은 Stash 플러그인 설정에서 읽습니다. 변경 후 새로고침하거나 `SideButtonSeek.reload()`를 실행하세요.
 
 ## 브라우저 제한
-일부 Chromium/Edge는 브라우저 수준에서 기록 이동을 처리해 X1/X2의 `preventDefault()`를 무시합니다. 페이지가 계속 뒤로 가면 마우스 드라이버(X-Mouse Button Control, Logitech G Hub, Razer Synapse, AutoHotkey)에서 측면 버튼을 **← / → 키**로 매핑하세요. Stash 기본 단축키가 탐색을 담당합니다.
+**v2.0.0** 부터는 Navigation API(Chrome/Edge 102+)로 브라우저 수준의 방문 기록 이동도 취소합니다. 측면 버튼 직후의 `traverse`를 차단하며, 인접한 기록 항목이 다른 문서에 속하면 같은 URL의 가드 항목을 하나 넣어 취소 가능하게 만듭니다(이 경우 일반 뒤로 가기를 한 번 더 눌러야 할 수 있습니다). 가드는 실제로 측면 버튼을 눌렀을 때만 만들어지므로 버튼을 키보드 키로 매핑한 환경에는 아무 영향이 없습니다.
 
 일부 드라이버는 측면 버튼을 키보드 입력이나 OS 명령으로 보내 button 3/4 DOM 이벤트가 전달되지 않습니다. 이 경우에도 드라이버 매핑으로 해결됩니다.
 
@@ -57,6 +57,8 @@ Local Path: (leave empty)
 
 ## 동작 원리
 Stash가 UI JavaScript를 주입합니다. `pointerdown`, `mousedown`, `mouseup`, `auxclick`을 캡처 단계에서 감지해 `.video-js` 안의 `button === 3` / `4`만 받고 `preventDefault()` 후 `PluginApi.utils.InteractiveUtils.getPlayer()` → `videojs.getPlayers()` → `<video>` 순서로 탐색합니다. 설정은 `{ configuration { plugins } }`에서 읽습니다.
+
+**How v2 blocks browser-level navigation (technical):** Chromium handles X1/X2 history traversal outside the page, so `preventDefault()` on mouse events has no effect. A `navigate` event with `navigationType === "traverse"` is `cancelable` only when its destination entry is same-document. On the first side-button press, if the neighbouring entry is cross-document, the plugin calls `history.pushState(state, "", location.href)` to insert a same-URL guard entry (which also truncates the forward stack). Its `navigate` listener then calls `preventDefault()` for traversals within a short window of a side-button press and consumes the guard after one cancellation, while ordinary Back/Forward clicks pass through unchanged. Run `SideButtonSeek.guard` in devtools to inspect guard counters and `navigation.entries()`.
 
 ## 라이선스
 MIT — [LICENSE](LICENSE) 참조.
