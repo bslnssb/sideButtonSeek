@@ -41,7 +41,7 @@
   "use strict";
 
   var ID = "sideButtonSeek";
-  var VERSION = "2.1.0";
+  var VERSION = "2.1.1";
   var BACK = 3;    // X1 / browser back
   var FORWARD = 4; // X2 / browser forward
   var NAV_WINDOW_MS = 3000; // hard upper bound for a pending guard
@@ -292,11 +292,12 @@
       });
   }
 
-  function buildStepPanel() {
+  function buildStepPanel(inControlBar) {
     var panel = document.createElement("div");
     panel.setAttribute("data-plugin", ID + "-panel");
     panel.style.cssText = [
-      "position:absolute", "top:44px", "right:10px", "z-index:2147483001",
+      "position:absolute", inControlBar ? "bottom:52px" : "top:44px",
+      "right:10px", "z-index:2147483001",
       "width:226px", "padding:12px", "border-radius:10px",
       "background:rgba(18,20,24,.95)", "color:#fff",
       "box-shadow:0 6px 26px rgba(0,0,0,.55)", "border:1px solid rgba(255,255,255,.14)",
@@ -350,13 +351,13 @@
     return panel;
   }
 
-  function toggleStepPanel(host) {
+  function toggleStepPanel(host, inControlBar) {
     if (stepPanel && stepPanel.isConnected) {
       stepPanel.remove();
       stepPanel = null;
       return;
     }
-    stepPanel = buildStepPanel();
+    stepPanel = buildStepPanel(inControlBar);
     host.appendChild(stepPanel);
     var input = stepPanel.querySelector("[data-sbs-input]");
     input.value = cfg.seekSeconds;
@@ -368,7 +369,12 @@
     if (!cfg.showStepButton) { removeStepUI(); return; }
     var host = document.querySelector(".video-js");
     if (!host) { removeStepUI(); return; }
-    if (stepBtn && stepBtn.isConnected && stepBtn.parentNode === host) {
+    // Prefer the control bar: that is where users look for player buttons.
+    // Fall back to a corner overlay if VideoJS has no control bar yet.
+    var bar = host.querySelector(".vjs-control-bar");
+    var inBar = !!bar;
+    var parent = inBar ? bar : host;
+    if (stepBtn && stepBtn.isConnected && stepBtn.parentNode === parent) {
       // Keep the label in sync when settings finish loading / change.
       stepBtn.textContent = stepLabel(cfg.seekSeconds);
       return;
@@ -380,23 +386,35 @@
     stepBtn.setAttribute("data-plugin", ID + "-step");
     stepBtn.textContent = stepLabel(cfg.seekSeconds);
     stepBtn.title = "设置侧键跳转步长 / Set side-button seek step";
-    stepBtn.style.cssText = [
-      "position:absolute", "top:10px", "right:10px", "z-index:2147483000",
-      "padding:5px 10px", "border:1px solid rgba(255,255,255,.28)", "border-radius:6px",
-      "background:rgba(0,0,0,.55)", "color:#fff",
-      "font:600 13px/1.2 system-ui,sans-serif", "cursor:pointer", "opacity:.72",
-      "transition:opacity .15s ease", "pointer-events:auto"
-    ].join(";") + ";";
+    if (inBar) {
+      // A normal flex child of the VideoJS control bar, at the far right.
+      stepBtn.style.cssText = [
+        "position:relative", "flex:none", "order:99", "align-self:center",
+        "height:26px", "margin:0 6px", "padding:0 9px",
+        "background:rgba(0,0,0,.35)", "border:1px solid rgba(255,255,255,.55)",
+        "border-radius:4px", "color:#fff",
+        "font:600 13px/1.2 system-ui,sans-serif", "cursor:pointer",
+        "opacity:.95", "pointer-events:auto"
+      ].join(";") + ";";
+    } else {
+      stepBtn.style.cssText = [
+        "position:absolute", "top:10px", "right:10px", "z-index:2147483000",
+        "padding:5px 10px", "border:1px solid rgba(255,255,255,.28)", "border-radius:6px",
+        "background:rgba(0,0,0,.55)", "color:#fff",
+        "font:600 13px/1.2 system-ui,sans-serif", "cursor:pointer", "opacity:.72",
+        "transition:opacity .15s ease", "pointer-events:auto"
+      ].join(";") + ";";
+    }
     stepBtn.addEventListener("mouseenter", function () { stepBtn.style.opacity = "1"; });
-    stepBtn.addEventListener("mouseleave", function () { stepBtn.style.opacity = ".72"; });
+    stepBtn.addEventListener("mouseleave", function () { stepBtn.style.opacity = inBar ? ".95" : ".72"; });
     ["click", "mousedown", "mouseup", "pointerdown", "auxclick"].forEach(function (type) {
       stepBtn.addEventListener(type, function (e) { e.stopPropagation(); });
     });
     stepBtn.addEventListener("click", function (e) {
       e.preventDefault();
-      toggleStepPanel(host);
+      toggleStepPanel(host, inBar);
     });
-    host.appendChild(stepBtn);
+    parent.appendChild(stepBtn);
   }
 
   function inPlayer(target) {

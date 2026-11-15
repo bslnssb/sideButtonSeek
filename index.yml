@@ -1,8 +1,8 @@
 - id: sideButtonSeek
   name: Side Button Seek
   metadata:
-    description: Use the mouse side buttons (X1 / browser back, X2 / browser forward) to seek the scene player backwards and forwards, block browser-level navigation via the Navigation API, and set the seek step from an in-player button.
-  version: 2.1.0
-  date: 2026-11-15 16:21:30
+    description: Use the mouse side buttons (X1 / browser back, X2 / browser forward) to seek the scene player, block browser-level navigation via the Navigation API, and set the seek step from a control-bar button.
+  version: 2.1.1
+  date: 2026-11-15 16:31:19
   path: sideButtonSeek.zip
-  sha256: 28d1da0b65950cb579fbddd29bbf036b8d97edc11e91e00a85e302f06e107b55
+  sha256: f0d373238a324013f2a1d4d06f73d207e296c7d23ffd0866f062e6a9f31fc287
