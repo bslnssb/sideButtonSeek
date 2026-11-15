@@ -1,0 +1,12 @@
+id: sideButtonSeek
+name: Side Button Seek
+metadata:
+  description: Use the mouse side buttons (X1 / browser back, X2 / browser forward) to seek the scene player backwards and forwards, and block browser navigation while over the player.
+version: 1.0.0
+date: "2026-11-15 08:25:35"
+requires: []
+source_repository: https://raw.githubusercontent.com/bslnssb/sideButtonSeek/main/index.yml
+files:
+- sideButtonSeek.js
+- sideButtonSeek.yml
+- manifest

@@ -1,0 +1,39 @@
+name: Side Button Seek
+description: Use the mouse side buttons (X1 / browser back and X2 / browser forward) to seek the scene player backwards and forwards. Blocks the browser back/forward navigation while the pointer is over the player.
+version: 1.0.0
+url: https://github.com/bslnssb/sideButtonSeek
+
+ui:
+  javascript:
+    - sideButtonSeek.js
+
+settings:
+  seekSeconds:
+    displayName: Seek step (seconds)
+    description: "Seconds to jump on each side-button press. Default: 10. Changes apply after a page refresh (or call SideButtonSeek.reload())."
+    type: NUMBER
+
+  swapButtons:
+    displayName: Swap the two side buttons
+    description: "Reverse which button seeks backwards and which seeks forwards."
+    type: BOOLEAN
+
+  onlyInPlayer:
+    displayName: Only act over the video player
+    description: "When enabled, side buttons keep their normal behaviour everywhere else in the Stash UI."
+    type: BOOLEAN
+
+  showOsd:
+    displayName: Show on-screen feedback
+    description: "Briefly display the jump amount (e.g. +10s) over the video."
+    type: BOOLEAN
+
+  preventNavigation:
+    displayName: Block browser back/forward navigation
+    description: "Call preventDefault() on side-button events so the browser does not leave the page. Some Chromium builds handle this at browser level; see the notes in the plugin JS header."
+    type: BOOLEAN
+
+  debug:
+    displayName: Debug logging
+    description: "Log side-button events and seek results to the browser console."
+    type: BOOLEAN
